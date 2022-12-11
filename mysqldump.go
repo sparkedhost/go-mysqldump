@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"time"
 )
 
 /*
@@ -16,17 +15,16 @@ Register a new dumper.
 	dir: Path to the directory where the dumps will be stored.
 	format: Format to be used to name each dump file. Uses time.Time.Format (https://golang.org/pkg/time/#Time.Format). format appended with '.sql'.
 */
-func Register(db *sql.DB, dir, format string, filename string) (*Data, error) {
+func Register(db *sql.DB, dir, filename string) (*Data, error) {
 	if !isDir(dir) {
 		return nil, errors.New("Invalid directory")
 	}
 
-	time := time.Now().Format(format)
-	p := path.Join(dir, filename+"-"+time+".sql")
+	p := path.Join(dir, filename+".sql")
 
 	// Check dump directory
 	if e, _ := exists(p); e {
-		return nil, errors.New("Dump '" + filename + "-" + time + ".sql" + "' already exists.")
+		return nil, errors.New("Dump '" + filename + ".sql" + "' already exists.")
 	}
 
 	// Create .sql file
