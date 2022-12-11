@@ -24,7 +24,8 @@ func main() {
 	config.Addr = "your-hostname:your-port"
 
 	dumpDir := "dumps"
-	dumpFilenameFormat := fmt.Sprintf("%s-20060102T150405", config.DBName) // accepts time layout string and add .sql at the end of file
+	timeFormat := fmt.Sprintf(time.Now().Format(time.RFC3339)) // accepts time layout string and add .sql at the end of file
+	fileName := fmt.Sprintf("%s", config.DBName)
 
 	if err := os.MkdirAll(dumpDir, 0755); err != nil {
 		fmt.Println("Error mkdir:", err)
@@ -38,7 +39,7 @@ func main() {
 	}
 
 	// Register database with mysqldump
-	dumper, err := mysqldump.Register(db, dumpDir, dumpFilenameFormat)
+	dumper, err := mysqldump.Register(db, dumpDir, timeFormat, fileName)
 	if err != nil {
 		fmt.Println("Error registering databse:", err)
 		return
