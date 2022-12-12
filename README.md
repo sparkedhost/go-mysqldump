@@ -1,5 +1,7 @@
-# Go MYSQL Dump
-Create MYSQL dumps in Go without the `mysqldump` CLI as a dependancy.
+# Go MySQL Dump
+#### Create MySQL dumps in Go without the `mysqldump` CLI as a dependancy.
+
+This is a fork that aims to fix the weird date formatting behavior.
 
 ### Simple Example
 ```go
