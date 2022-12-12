@@ -8,13 +8,7 @@ import (
 	"path"
 )
 
-/*
-Register a new dumper.
-
-	db: Database that will be dumped (https://golang.org/pkg/database/sql/#DB).
-	dir: Path to the directory where the dumps will be stored.
-	format: Format to be used to name each dump file. Uses time.Time.Format (https://golang.org/pkg/time/#Time.Format). format appended with '.sql'.
-*/
+// Register a new dumper.
 func Register(db *sql.DB, dir, filename string) (*Data, error) {
 	if !isDir(dir) {
 		return nil, errors.New("Invalid directory")
@@ -48,19 +42,16 @@ func Dump(db *sql.DB, out io.Writer) error {
 	}).Dump()
 }
 
-// Close the dumper.
-// Will also close the database the dumper is connected to as well as the out stream if it has a Close method.
-//
-// Not required.
-func (d *Data) Close() error {
+// Close the dumper (and database connection).
+func (data *Data) Close() error {
 	defer func() {
-		d.Connection = nil
-		d.Out = nil
+		data.Connection = nil
+		data.Out = nil
 	}()
-	if out, ok := d.Out.(io.Closer); ok {
+	if out, ok := data.Out.(io.Closer); ok {
 		out.Close()
 	}
-	return d.Connection.Close()
+	return data.Connection.Close()
 }
 
 func exists(p string) (bool, os.FileInfo) {

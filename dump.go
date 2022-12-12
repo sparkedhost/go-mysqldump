@@ -13,15 +13,7 @@ import (
 	"time"
 )
 
-/*
-Data struct to configure dump behavior
-
-	Out:              Stream to wite to
-	Connection:       Database connection to dump
-	IgnoreTables:     Mark sensitive tables to ignore
-	MaxAllowedPacket: Sets the largest packet size to use in backups
-	LockTables:       Lock all tables for the duration of the dump
-*/
+// Dump configuration parameters
 type Data struct {
 	Out              io.Writer
 	Connection       *sql.DB
@@ -52,14 +44,13 @@ type metaData struct {
 	CompleteTime  string
 }
 
+// Version of this plugin for easy reference
 const (
-	// Version of this plugin for easy reference
-	Version = "0.7.3"
-
+	Version                 = "0.7.3"
 	defaultMaxAllowedPacket = 4194304
 )
 
-// takes a *metaData
+// Takes *metaData
 const headerTmpl = `-- Go SQL Dump {{ .DumpVersion }}
 --
 -- ------------------------------------------------------
@@ -77,7 +68,7 @@ const headerTmpl = `-- Go SQL Dump {{ .DumpVersion }}
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 `
 
-// takes a *metaData
+// Takes *metaData
 const footerTmpl = `/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -91,7 +82,7 @@ const footerTmpl = `/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 -- Dump completed on {{ .CompleteTime }}
 `
 
-// Takes a *table
+// Takes *table
 const tableTmpl = `
 --
 -- Table structure for table {{ .NameEsc }}
@@ -184,10 +175,7 @@ func (data *Data) Dump() error {
 	return data.footerTmpl.Execute(data.Out, meta)
 }
 
-// MARK: - Private methods
-
-// begin starts a read only transaction that will be whatever the database was
-// when it was called
+// begin() starts a read only transaction that will be whatever the database was when it was called
 func (data *Data) begin() (err error) {
 	data.tx, err = data.Connection.BeginTx(context.Background(), &sql.TxOptions{
 		Isolation: sql.LevelRepeatableRead,
@@ -196,12 +184,10 @@ func (data *Data) begin() (err error) {
 	return
 }
 
-// rollback cancels the transaction
+// rollback() cancels the transaction
 func (data *Data) rollback() error {
 	return data.tx.Rollback()
 }
-
-// MARK: writter methods
 
 func (data *Data) dumpTable(name string) error {
 	if data.err != nil {
@@ -218,9 +204,7 @@ func (data *Data) writeTable(table *table) error {
 	return table.Err
 }
 
-// MARK: get methods
-
-// getTemplates initializes the templates on data from the constants in this file
+// getTemplates() initializes the templates on data from the constants in this file
 func (data *Data) getTemplates() (err error) {
 	data.headerTmpl, err = template.New("mysqldumpHeader").Parse(headerTmpl)
 	if err != nil {
@@ -276,8 +260,6 @@ func (meta *metaData) updateServerVersion(data *Data) (err error) {
 	return
 }
 
-// MARK: create methods
-
 func (data *Data) createTable(name string) *table {
 	return &table{
 		Name: name,
@@ -298,7 +280,6 @@ func (table *table) CreateSQL() (string, error) {
 	if tableReturn.String != table.Name {
 		return "", errors.New("Returned table is not the same as requested table")
 	}
-
 	return tableSQL.String, nil
 }
 
@@ -389,7 +370,6 @@ func (table *table) Init() error {
 }
 
 func reflectColumnType(tp *sql.ColumnType) reflect.Type {
-	// reflect for scanable
 	switch tp.ScanType().Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return reflect.TypeOf(sql.NullInt64{})
@@ -411,7 +391,6 @@ func reflectColumnType(tp *sql.ColumnType) reflect.Type {
 		return reflect.TypeOf(sql.NullFloat64{})
 	}
 
-	// unknown datatype
 	return tp.ScanType()
 }
 
