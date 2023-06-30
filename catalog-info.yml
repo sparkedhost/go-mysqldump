@@ -9,7 +9,7 @@ metadata:
   - url: 
   - url: 
 spec:
-  type: service 
+  type: library 
   lifecycle: production
   owner: deerstalker
   system: Pro
