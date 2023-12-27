@@ -16,11 +16,11 @@ import (
 /*
 Data struct to configure dump behavior
 
-    Out:              Stream to wite to
-    Connection:       Database connection to dump
-    IgnoreTables:     Mark sensitive tables to ignore
-    MaxAllowedPacket: Sets the largest packet size to use in backups
-    LockTables:       Lock all tables for the duration of the dump
+	Out:              Stream to wite to
+	Connection:       Database connection to dump
+	IgnoreTables:     Mark sensitive tables to ignore
+	MaxAllowedPacket: Sets the largest packet size to use in backups
+	LockTables:       Lock all tables for the duration of the dump
 */
 type Data struct {
 	Out              io.Writer
@@ -320,7 +320,7 @@ func (table *table) CreateSQL() (string, error) {
 	}
 
 	if info[0].String != table.Name {
-		return "", errors.New("Returned table is not the same as requested table")
+		return "", errors.New("returned table is not the same as requested table")
 	}
 
 	return info[1].String, nil

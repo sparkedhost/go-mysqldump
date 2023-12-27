@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -186,7 +186,7 @@ func TestCreateSQLWrongTable(t *testing.T) {
 
 	result, err := table.CreateSQL()
 	assert.Error(t, err)
-	expectedError := errors.New("Returned table is not the same as requested table")
+	expectedError := errors.New("returned table is not the same as requested table")
 	assert.Equal(t, expectedError, err)
 
 	// we make sure that all expectations were met
