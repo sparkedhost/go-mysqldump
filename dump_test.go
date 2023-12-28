@@ -3,11 +3,12 @@ package mysqldump
 import (
 	"bytes"
 	"database/sql"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
 
-	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -122,7 +123,7 @@ func TestGetServerVersionOk(t *testing.T) {
 	assert.Equal(t, "test_version", meta.ServerVersion)
 }
 
-func TestCreateTableSQLOk(t *testing.T) {
+func TestCreateSQLSQLOk(t *testing.T) {
 	data, mock, err := getMockData()
 	assert.NoError(t, err, "an error was not expected when opening a stub database connection")
 	defer data.Close()
@@ -141,6 +142,83 @@ func TestCreateTableSQLOk(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet(), "there were unfulfilled expections")
 
 	expectedResult := "CREATE TABLE 'Test_Table' (`id` int(11) NOT NULL AUTO_INCREMENT,`s` char(60) DEFAULT NULL, PRIMARY KEY (`id`))ENGINE=InnoDB DEFAULT CHARSET=latin1"
+
+	if !reflect.DeepEqual(result, expectedResult) {
+		t.Fatalf("expected %#v, got %#v", expectedResult, result)
+	}
+}
+
+func TestCreateSQLQueryFail(t *testing.T) {
+	data, mock, err := getMockData()
+	assert.NoError(t, err, "an error was not expected when opening a stub database connection")
+	defer data.Close()
+
+	queryError := errors.New("query failure")
+	mock.ExpectQuery("^SHOW CREATE TABLE `Test_Table`$").WillReturnError(queryError)
+
+	table := data.createTable("Test_Table")
+
+	result, err := table.CreateSQL()
+	assert.Error(t, err)
+	assert.Equal(t, queryError, err)
+
+	// we make sure that all expectations were met
+	assert.NoError(t, mock.ExpectationsWereMet(), "there were unfulfilled expections")
+
+	expectedResult := ""
+
+	if !reflect.DeepEqual(result, expectedResult) {
+		t.Fatalf("expected %#v, got %#v", expectedResult, result)
+	}
+}
+
+func TestCreateSQLWrongTable(t *testing.T) {
+	data, mock, err := getMockData()
+	assert.NoError(t, err, "an error was not expected when opening a stub database connection")
+	defer data.Close()
+
+	rows := sqlmock.NewRows([]string{"Table", "Create Table"}).
+		AddRow("Diff_Table", "CREATE TABLE 'Test_Table' (`id` int(11) NOT NULL AUTO_INCREMENT,`s` char(60) DEFAULT NULL, PRIMARY KEY (`id`))ENGINE=InnoDB DEFAULT CHARSET=latin1")
+
+	mock.ExpectQuery("^SHOW CREATE TABLE `Test_Table`$").WillReturnRows(rows)
+
+	table := data.createTable("Test_Table")
+
+	result, err := table.CreateSQL()
+	assert.Error(t, err)
+	expectedError := errors.New("returned table is not the same as requested table")
+	assert.Equal(t, expectedError, err)
+
+	// we make sure that all expectations were met
+	assert.NoError(t, mock.ExpectationsWereMet(), "there were unfulfilled expections")
+
+	expectedResult := ""
+
+	if !reflect.DeepEqual(result, expectedResult) {
+		t.Fatalf("expected %#v, got %#v", expectedResult, result)
+	}
+}
+
+func TestCreateTableInvalidColumns(t *testing.T) {
+	data, mock, err := getMockData()
+	assert.NoError(t, err, "an error was not expected when opening a stub database connection")
+	defer data.Close()
+
+	rows := sqlmock.NewRows([]string{"Table"}).
+		AddRow("Test_Table")
+
+	mock.ExpectQuery("^SHOW CREATE TABLE `Test_Table`$").WillReturnRows(rows)
+
+	table := data.createTable("Test_Table")
+
+	result, err := table.CreateSQL()
+	assert.Error(t, err)
+	assert.Equal(t, errors.New("database column information is malformed"), err)
+
+	// we make sure that all expectations were met
+	assert.NoError(t, mock.ExpectationsWereMet(), "there were unfulfilled expections")
+
+	expectedResult := ""
 
 	if !reflect.DeepEqual(result, expectedResult) {
 		t.Fatalf("expected %#v, got %#v", expectedResult, result)

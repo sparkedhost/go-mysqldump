@@ -16,11 +16,11 @@ import (
 /*
 Data struct to configure dump behavior
 
-    Out:              Stream to wite to
-    Connection:       Database connection to dump
-    IgnoreTables:     Mark sensitive tables to ignore
-    MaxAllowedPacket: Sets the largest packet size to use in backups
-    LockTables:       Lock all tables for the duration of the dump
+	Out:              Stream to wite to
+	Connection:       Database connection to dump
+	IgnoreTables:     Mark sensitive tables to ignore
+	MaxAllowedPacket: Sets the largest packet size to use in backups
+	LockTables:       Lock all tables for the duration of the dump
 */
 type Data struct {
 	Out              io.Writer
@@ -290,16 +290,40 @@ func (table *table) NameEsc() string {
 }
 
 func (table *table) CreateSQL() (string, error) {
-	var tableReturn, tableSQL sql.NullString
-	if err := table.data.tx.QueryRow("SHOW CREATE TABLE "+table.NameEsc()).Scan(&tableReturn, &tableSQL); err != nil {
+	rows, err := table.data.tx.Query("SHOW CREATE TABLE " + table.NameEsc())
+	if err != nil {
 		return "", err
 	}
+	defer rows.Close()
 
-	if tableReturn.String != table.Name {
-		return "", errors.New("Returned table is not the same as requested table")
+	// get the column names from the query
+	columnNames, err := rows.Columns()
+	if err != nil {
+		return "", err
+	}
+	columnCount := len(columnNames)
+
+	info := make([]sql.NullString, columnCount)
+	scans := make([]interface{}, columnCount)
+	for i := range info {
+		scans[i] = &info[i]
 	}
 
-	return tableSQL.String, nil
+	if rows.Next() {
+		if err := rows.Scan(scans...); err != nil {
+			return "", err
+		}
+	}
+
+	if len(info) < 2 {
+		return "", errors.New("database column information is malformed")
+	}
+
+	if info[0].String != table.Name {
+		return "", errors.New("returned table is not the same as requested table")
+	}
+
+	return info[1].String, nil
 }
 
 func (table *table) initColumnData() error {
