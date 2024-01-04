@@ -122,7 +122,7 @@ const viewTmpl = `
 -- View structure for view {{ .NameEsc }}
 --
 
-DROP TABLE IF EXISTS {{ .NameEsc }};
+DROP VIEW IF EXISTS {{ .NameEsc }};
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
  SET character_set_client = utf8mb4 ;
 {{ .CreateSQL }};
