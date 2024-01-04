@@ -16,7 +16,7 @@ import (
 /*
 Data struct to configure dump behavior
 
-	Out:              Stream to wite to
+	Out:              Stream to write to
 	Connection:       Database connection to dump
 	IgnoreTables:     Mark sensitive tables to ignore
 	MaxAllowedPacket: Sets the largest packet size to use in backups
@@ -146,7 +146,7 @@ func (data *Data) Dump() error {
 	}
 
 	// Start the read only transaction and defer the rollback until the end
-	// This way the database will have the exact state it did at the begining of
+	// This way the database will have the exact state it did at the beginning of
 	// the backup and nothing can be accidentally committed
 	if err := data.begin(); err != nil {
 		return err
@@ -215,7 +215,7 @@ func (data *Data) rollback() error {
 	return data.tx.Rollback()
 }
 
-// MARK: writter methods
+// MARK: writer methods
 
 func (data *Data) dumpTable(table *table) error {
 	if data.err != nil {
@@ -442,7 +442,7 @@ func (table *table) Init() error {
 }
 
 func reflectColumnType(tp *sql.ColumnType) reflect.Type {
-	// reflect for scanable
+	// reflect for ScanType
 	switch tp.ScanType().Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return reflect.TypeOf(sql.NullInt64{})
