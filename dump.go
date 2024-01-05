@@ -16,7 +16,7 @@ import (
 /*
 Data struct to configure dump behavior
 
-	Out:              Stream to wite to
+	Out:              Stream to write to
 	Connection:       Database connection to dump
 	IgnoreTables:     Mark sensitive tables to ignore
 	MaxAllowedPacket: Sets the largest packet size to use in backups
@@ -31,14 +31,16 @@ type Data struct {
 
 	tx         *sql.Tx
 	headerTmpl *template.Template
+	viewTmpl   *template.Template
 	tableTmpl  *template.Template
 	footerTmpl *template.Template
 	err        error
 }
 
 type table struct {
-	Name string
-	Err  error
+	Name   string
+	Err    error
+	isView bool
 
 	cols   []string
 	data   *Data
@@ -115,6 +117,17 @@ LOCK TABLES {{ .NameEsc }} WRITE;
 /*!40000 ALTER TABLE {{ .NameEsc }} ENABLE KEYS */;
 UNLOCK TABLES;
 `
+const viewTmpl = `
+--
+-- View structure for view {{ .NameEsc }}
+--
+
+DROP VIEW IF EXISTS {{ .NameEsc }};
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+ SET character_set_client = utf8mb4 ;
+{{ .CreateSQL }};
+/*!40101 SET character_set_client = @saved_cs_client */;
+`
 
 const nullType = "NULL"
 
@@ -133,7 +146,7 @@ func (data *Data) Dump() error {
 	}
 
 	// Start the read only transaction and defer the rollback until the end
-	// This way the database will have the exact state it did at the begining of
+	// This way the database will have the exact state it did at the beginning of
 	// the backup and nothing can be accidentally committed
 	if err := data.begin(); err != nil {
 		return err
@@ -157,11 +170,11 @@ func (data *Data) Dump() error {
 	if data.LockTables && len(tables) > 0 {
 		var b bytes.Buffer
 		b.WriteString("LOCK TABLES ")
-		for index, name := range tables {
+		for index, table := range tables {
 			if index != 0 {
 				b.WriteString(",")
 			}
-			b.WriteString("`" + name + "` READ /*!32311 LOCAL */")
+			b.WriteString("`" + table.Name + "` READ /*!32311 LOCAL */")
 		}
 
 		if _, err := data.Connection.Exec(b.String()); err != nil {
@@ -171,11 +184,12 @@ func (data *Data) Dump() error {
 		defer data.Connection.Exec("UNLOCK TABLES")
 	}
 
-	for _, name := range tables {
-		if err := data.dumpTable(name); err != nil {
+	for _, table := range tables {
+		if err := data.dumpTable(table); err != nil {
 			return err
 		}
 	}
+
 	if data.err != nil {
 		return data.err
 	}
@@ -201,19 +215,24 @@ func (data *Data) rollback() error {
 	return data.tx.Rollback()
 }
 
-// MARK: writter methods
+// MARK: writer methods
 
-func (data *Data) dumpTable(name string) error {
+func (data *Data) dumpTable(table *table) error {
 	if data.err != nil {
 		return data.err
 	}
-	table := data.createTable(name)
 	return data.writeTable(table)
 }
 
 func (data *Data) writeTable(table *table) error {
-	if err := data.tableTmpl.Execute(data.Out, table); err != nil {
-		return err
+	if table.isView {
+		if err := data.viewTmpl.Execute(data.Out, table); err != nil {
+			return err
+		}
+	} else {
+		if err := data.tableTmpl.Execute(data.Out, table); err != nil {
+			return err
+		}
 	}
 	return table.Err
 }
@@ -232,6 +251,11 @@ func (data *Data) getTemplates() (err error) {
 		return
 	}
 
+	data.viewTmpl, err = template.New("mysqldumpView").Parse(viewTmpl)
+	if err != nil {
+		return
+	}
+
 	data.footerTmpl, err = template.New("mysqldumpTable").Parse(footerTmpl)
 	if err != nil {
 		return
@@ -239,22 +263,24 @@ func (data *Data) getTemplates() (err error) {
 	return
 }
 
-func (data *Data) getTables() ([]string, error) {
-	tables := make([]string, 0)
+func (data *Data) getTables() ([]*table, error) {
+	tables := make([]*table, 0)
 
-	rows, err := data.tx.Query("SHOW TABLES")
+	rows, err := data.tx.Query("SHOW FULL TABLES")
 	if err != nil {
 		return tables, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var table sql.NullString
-		if err := rows.Scan(&table); err != nil {
+		var tableName sql.NullString
+		var tableType sql.NullString
+		if err := rows.Scan(&tableName, &tableType); err != nil {
 			return tables, err
 		}
-		if table.Valid && !data.isIgnoredTable(table.String) {
-			tables = append(tables, table.String)
+		if tableName.Valid && !data.isIgnoredTable(tableName.String) {
+			table := data.createTable(tableName.String, tableType.String == "VIEW")
+			tables = append(tables, table)
 		}
 	}
 	return tables, rows.Err()
@@ -278,10 +304,11 @@ func (meta *metaData) updateServerVersion(data *Data) (err error) {
 
 // MARK: create methods
 
-func (data *Data) createTable(name string) *table {
+func (data *Data) createTable(name string, isView bool) *table {
 	return &table{
-		Name: name,
-		data: data,
+		Name:   name,
+		isView: isView,
+		data:   data,
 	}
 }
 
@@ -322,6 +349,8 @@ func (table *table) CreateSQL() (string, error) {
 	if info[0].String != table.Name {
 		return "", errors.New("returned table is not the same as requested table")
 	}
+
+	table.isView = strings.Contains(info[1].String, "VIEW")
 
 	return info[1].String, nil
 }
@@ -413,7 +442,7 @@ func (table *table) Init() error {
 }
 
 func reflectColumnType(tp *sql.ColumnType) reflect.Type {
-	// reflect for scanable
+	// reflect for ScanType
 	switch tp.ScanType().Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return reflect.TypeOf(sql.NullInt64{})
