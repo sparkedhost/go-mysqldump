@@ -4,10 +4,7 @@ metadata:
   name: go-mysqldump
   description: instructions to create MySQL dumps
   labels:
-  - jira-key: JPXI
-  links:
-  - url: 
-  - url: 
+    jira-key: JPXI
 spec:
   type: library 
   lifecycle: production
