@@ -56,7 +56,7 @@ type metaData struct {
 
 // Version of this plugin for easy reference
 const (
-	Version                 = "0.7.3"
+	Version                 = "0.7.4"
 	defaultMaxAllowedPacket = 4194304
 )
 
@@ -211,8 +211,6 @@ func (data *Data) rollback() error {
 	return data.tx.Rollback()
 }
 
-// MARK: writer methods
-
 func (data *Data) dumpTable(table *table) error {
 	if data.err != nil {
 		return data.err
@@ -295,8 +293,6 @@ func (meta *metaData) updateServerVersion(data *Data) (err error) {
 	meta.ServerVersion = serverVersion.String
 	return
 }
-
-// MARK: create methods
 
 func (data *Data) createTable(name string, isView bool) *table {
 	return &table{

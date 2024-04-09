@@ -11,7 +11,7 @@ import (
 // Register a new dumper.
 func Register(db *sql.DB, dir, filename string) (*Data, error) {
 	if !isDir(dir) {
-		return nil, errors.New("Invalid directory")
+		return nil, errors.New("invalid directory")
 	}
 
 	p := path.Join(dir, filename+".sql")
