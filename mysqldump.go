@@ -42,7 +42,10 @@ func Dump(db *sql.DB, out io.Writer) error {
 	}).Dump()
 }
 
-// Close the dumper (and database connection).
+// Close the dumper.
+// Will also close the database the dumper is connected to as well as the out stream if it has a Close method.
+//
+// Not required.
 func (data *Data) Close() error {
 	defer func() {
 		data.Connection = nil
