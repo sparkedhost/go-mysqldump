@@ -9,4 +9,4 @@ spec:
   type: library 
   lifecycle: production
   owner: deerstalker
-  system: Pro
+  system: deerstalker-tools
