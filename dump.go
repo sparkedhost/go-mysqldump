@@ -462,6 +462,8 @@ func reflectColumnType(tp *sql.ColumnType) reflect.Type {
 		return reflect.TypeOf(sql.NullInt64{})
 	case "DOUBLE":
 		return reflect.TypeOf(sql.NullFloat64{})
+	case "DATETIME", "TIMESTAMP", "DATE", "TIME":
+		return reflect.TypeOf(sql.NullTime{})
 	}
 
 	// unknown datatype
@@ -525,6 +527,12 @@ func (table *table) RowBuffer() *bytes.Buffer {
 			} else {
 				b.WriteString(nullType)
 			}
+		case *sql.NullTime:
+			if s.Valid {
+				fmt.Fprintf(&b, "'%s'", s.Time.Format("2006-01-02 15:04:05"))
+			} else {
+				b.WriteString(nullType)
+			}
 		case *sql.RawBytes:
 			if len(*s) == 0 {
 				b.WriteString(nullType)
@@ -558,7 +566,7 @@ func (table *table) Stream() <-chan string {
 			if insert.Len() == 0 {
 				fmt.Fprint(&insert, "INSERT INTO ", table.NameEsc(), " (", table.columnsList(), ") VALUES ")
 			} else {
-				insert.WriteString(",")
+				insert.WriteString(",\n")
 			}
 			b.WriteTo(&insert)
 		}
